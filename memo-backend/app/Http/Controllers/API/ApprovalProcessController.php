@@ -10,6 +10,9 @@ use App\Models\Memo;
 use App\Models\User;
 use App\Models\ApprovalProcess;
 use App\Notifications\ApprovalProcessNotification;
+use App\Notifications\EmployeeNotification;
+use App\Notifications\ReturnRequestNotification;
+use App\Notifications\PreviousReturnRequestNotification;
 
 class ApprovalProcessController extends Controller
 {
@@ -81,34 +84,34 @@ class ApprovalProcessController extends Controller
                 if ($nextApprovalProcess) {
                     $nextApprover = $nextApprovalProcess->user;
                     $firstname = $nextApprover->firstName;
-                    $employee = $memo->user;
-                    $requesterFirstname = $employee->firstName;
-                    $requesterLastname = $employee->lastName;
+                    $createdMemo = $memo->user;
+                    $requesterFirstname = $createdMemo->firstName;
+                    $requesterLastname = $createdMemo->lastName;
                     $nextApprover->notify(new ApprovalProcessNotification($nextApprovalProcess, $firstname,$memo,$requesterFirstname,$requesterLastname));
                 } else {
                     $memo->status = 'Approved';
                     $memo->save();
-                    $employee = $memo->user;
-                    $firstname = $employee->firstName;
+                    $createdMemo = $memo->user;
+                    $firstname = $createdMemo->firstName;
                     // Notify employee
-                    //$employee->notify(new EmployeeNotification($memo, 'approved', $firstname, $memo->form_type));
+                    $createdMemo->notify(new EmployeeNotification($memo, 'approved', $firstname, $memo->re));
                 }
             } elseif ($action === 'receive') {
                 $memo->status = 'Received';
                 $memo->save();
-                $employee = $memo->user;
-                $firstname = $employee->firstName;
+                $createdMemo = $memo->user;
+                $firstname = $createdMemo->firstName;
                 // Notify employee
-               // $employee->notify(new EmployeeNotification($memo, 'received', $firstname, $memo->form_type));
+               $createdMemo->notify(new EmployeeNotification($memo, 'received', $firstname, $memo->form_type));
             } else { // disapprove
                 $memo->status = 'Disapproved';
                 $memo->save();
-                $employee = $memo->user;
-                $firstname = $employee->firstName;
+                $createdMemo= $memo->user;
+                $firstname = $createdMemo->firstName;
                 $approverFirstname = $approvalProcess->user->firstName;
                 $approverLastname = $approvalProcess->user->lastName;
                 // Notify employee
-                //$employee->notify(new ReturnRequestNotification($memo, 'disapproved', $firstname, $approverFirstname, $approverLastname, $comment));
+                $createdMemo->notify(new ReturnRequestNotification($memo, 'disapproved', $firstname, $approverFirstname, $approverLastname, $comment));
     
                 // Notify previous approvers
                 $previousApprovalProcesses = ApprovalProcess::where('memo_id', $memo_id)
@@ -124,10 +127,10 @@ class ApprovalProcessController extends Controller
                         'status' => "Rejected by $approverFirstname $approverLastname",
                     ]);
     
-                    $requesterFirstname = $employee->firstName;
-                    $requesterLastname = $employee->lastName;
+                    $requesterFirstname = $createdMemo->firstName;
+                    $requesterLastname = $createdMemo->lastName;
                     // Notify previous approver
-                    //$previousApprover->notify(new PreviousReturnRequestNotification($memo, 'disapproved', $prevFirstName, $approverFirstname, $approverLastname, $comment, $requesterFirstname, $requesterLastname));
+                    $previousApprover->notify(new PreviousReturnRequestNotification($memo, 'disapproved', $prevFirstName, $approverFirstname, $approverLastname, $comment, $requesterFirstname, $requesterLastname));
                 }
             }
     
@@ -149,115 +152,151 @@ class ApprovalProcessController extends Controller
     
 
     
-    /* public function getRequestFormsForApproval($user_id)
+   public function getMemoForApproval($user_id)
     {
         try {
             // Retrieve all approval processes where the current user is involved
             $approvalProcesses = ApprovalProcess::where('user_id', $user_id)
                 ->orderBy('level')
-                ->with(['requestForm.user', 'user']) // Eager load request form with user
+                ->with(['memo.user', 'user']) // Eager load request form with user
                 ->get();
     
             // Process each approval process
             $transformedApprovalProcesses = $approvalProcesses->map(function ($approvalProcess) use ($user_id) {
-                $requestForm = $approvalProcess->requestForm;
-                $requester = $requestForm->user; // Eager loaded user
+                $memo = $approvalProcess->memo;
+                $requester = $memo->user; // Eager loaded user
     
                 // Check if any previous level is disapproved
-                $previousLevelsDisapproved = $requestForm->approvalProcess
+                $previousLevelsDisapproved = $memo->approvalProcess
                     ->where('level', '<', $approvalProcess->level)
                     ->contains('status', 'Disapproved');
     
                 // Check if all previous levels are approved
-                $previousLevelsApproved = $requestForm->approvalProcess
+                $previousLevelsApproved = $memo->approvalProcess
                     ->where('level', '<', $approvalProcess->level)
                     ->every(function ($process) {
                         return $process->status == 'Approved';
                     });
+
+              
     
                 // Determine if it's the user's turn to approve
                 $isUserTurn = $previousLevelsApproved && $approvalProcess->status == 'Pending' && $approvalProcess->user_id == $user_id;
     
-                // Include request forms where the previous level has statuses of Approved, Disapproved, or Rejected by...
-                $isRelevantStatus = in_array($approvalProcess->status, ['Approved', 'Disapproved']) ||
-                    preg_match('/^Rejected by/', $approvalProcess->status);
-    
-                if (!$isRelevantStatus && !$isUserTurn) {
-                    return null; // Skip if the status is not relevant and it's not the user's turn to approve
-                }
     
                 // Determine if the current user is the last approver
-                $isLastApprover = $requestForm->approvalProcess()
+                $isLastApprover = $memo->approvalProcess()
                     ->where('status', 'Pending')
                     ->where('level', '>', $approvalProcess->level)
                     ->count() === 0;
     
                 // Determine if the request form has been disapproved
-                $isDisapproved = $requestForm->approvalProcess()
+                $isDisapproved = $memo->approvalProcess()
                     ->where('status', 'Disapproved')
                     ->count() > 0;
     
                 // Determine the next approver
-                $pendingApproverr = $requestForm->approvalProcess()
+                $pendingApproverr = $memo->approvalProcess()
                     ->where('status', 'Pending')
                     ->orderBy('level')
                     ->first()?->user; // Get the next approver
+
+                 // Determine if it's the user's turn to approve
+                 $isUserTurn = $previousLevelsApproved && $approvalProcess->status == 'Pending' && $approvalProcess->user_id == $user_id;
+
+                 // Include request forms where the previous level has statuses of Approved, Disapproved, or Rejected by...
+                 $isRelevantStatus = in_array($approvalProcess->status, ['Approved', 'Disapproved','Received']) ||
+                     preg_match('/^Rejected by/', $approvalProcess->status);
+ 
+                 if (!$isRelevantStatus && !$isUserTurn) {
+                     return null; // Skip if the status is not relevant and it's not the user's turn to approve
+                 }
     
        // Fetch approvers details
-          $notedByIds = $requestForm->noted_by ?? [];
-          $approvedByIds = $requestForm->approved_by ?? [];
-    
-          $allApproversIds = array_merge($notedByIds, $approvedByIds);
-    
-          // Fetch all approvers in one query
-          $allApprovers = User::whereIn('id', $allApproversIds)
-              ->select('id', 'firstName', 'lastName', 'position', 'signature', 'branch')
-              ->get()
-              ->keyBy('id');
-    
-          // Fetch all approval statuses and comments in one query
-          $approvalData = ApprovalProcess::whereIn('user_id', $allApproversIds)
-              ->where('request_form_id', $requestForm->id)
-              ->get()
-              ->keyBy('user_id');
-    
-          // Format noted_by users
-          $formattedNotedBy = $notedByIds
-              ? collect($notedByIds)->map(function ($userId) use ($allApprovers, $approvalData) {
-                  if (isset($allApprovers[$userId])) {
-                      $user = $allApprovers[$userId];
-                      $approval = $approvalData[$userId] ?? null;
-    
-                      return [
-                          'firstname' => $user->firstName,
-                          'lastname' => $user->lastName,
-                          'status' => $approval->status ?? '',
-                          'comment' => $approval->comment ?? '',
-                          'position' => $user->position,
-                          'signature' => $user->signature,
-                      ];
-                  }
-              })->filter()->values()->all()
-              : [];
-    
-                    // Format approved_by users
-                    $formattedApprovedBy = $approvedByIds
-                    ? collect($approvedByIds)->map(function ($userId) use ($allApprovers, $approvalData) {
-                        if (isset($allApprovers[$userId])) {
-                            $user = $allApprovers[$userId];
-                            $approval = $approvalData[$userId] ?? null;
-    
-                            return [
-                                'firstname' => $user->firstName,
-                                'lastname' => $user->lastName,
-                                'status' => $approval->status ?? '',
-                                'comment' => $approval->comment ?? '',
-                                'position' => $user->position,
-                                'signature' => $user->signature,
-                            ];
-                        }
-                    })->filter()->values()->all()
-                    : [];
+       $ByIds = is_string($memo->by) ? json_decode($memo->by, true) : [];
+       $approvedByIds = is_string($memo->approved_by) ? json_decode($memo->approved_by, true) : [];
+       $toID = $memo->to;
+       $toID = [$toID]; 
+       // Ensure both are arrays
+       $ByIds = is_array($ByIds) ? $ByIds : [];
+       $approvedByIds = is_array($approvedByIds) ? $approvedByIds : [];
+
+       $allApproversIds = array_merge($ByIds, $approvedByIds, $toID );
+       $receiver = ($approvalProcess->user_id === $memo->to);
+
+       // Fetch all approvers in one query
+       $allApprovers = User::whereIn('id', $allApproversIds)
+           ->select('id', 'firstName', 'lastName', 'position', 'signature', 'branch')
+           ->get()
+           ->keyBy('id');
+
+
+       $to = User::with('branch')
+           ->where('id', $toID)
+           ->select('id', 'firstName', 'lastName', 'position','signature', 'branch_code') // Ensure 'branch_code' is selected
+           ->first();
+
+       $branchCode = $to->branch ? $to->branch->branch_code : 'No branch assigned';
+       $branchName = $to->branch ? $to->branch->branch : 'No branch assigned';
+
+       // Fetch all approval statuses and comments in one query
+       $approvalData = ApprovalProcess::whereIn('user_id', $allApproversIds)
+           ->where('memo_id', $memo->id)
+           ->get()
+           ->keyBy('user_id');
+
+       // Format noted_by users
+       $formattedNotedBy = $ByIds
+           ? collect($ByIds)->map(function ($userId) use ($allApprovers, $approvalData) {
+               if (isset($allApprovers[$userId])) {
+                   $user = $allApprovers[$userId];
+                   $approval = $approvalData[$userId] ?? null;
+
+                   return [
+                       'firstname' => $user->firstName,
+                       'lastname' => $user->lastName,
+                       'status' => $approval->status ?? '',
+                       'position' => $user->position,
+                       'signature' => $user->signature,
+                   ];
+               }
+           })->filter()->values()->all()
+           : [];
+
+       // Format approved_by users
+       $formattedApprovedBy = $approvedByIds
+           ? collect($approvedByIds)->map(function ($userId) use ($allApprovers, $approvalData) {
+               if (isset($allApprovers[$userId])) {
+                   $user = $allApprovers[$userId];
+                   $approval = $approvalData[$userId] ?? null;
+
+                   return [
+                       'firstname' => $user->firstName,
+                       'lastname' => $user->lastName,
+                       'status' => $approval->status ?? '',
+                       'position' => $user->position,
+                       'signature' => $user->signature,
+                   ];
+               }
+           })->filter()->values()->all()
+           : [];
+
+           $formattedReceivedBy = $toID
+           ? collect($toID)->map(function ($userId) use ($allApprovers, $approvalData) {
+               if (isset($allApprovers[$userId])) {
+                   $user = $allApprovers[$userId];
+                   $approval = $approvalData[$userId] ?? null;
+
+                   return [
+                       'firstname' => $user->firstName,
+                       'lastname' => $user->lastName,
+                       'status' => $approval->status ?? '',
+                       'signature' => $user->signature,
+                       'updated_at' => $approval->updated_at
+                   ];
+               }
+           })->filter()->values()->all()
+           : [];
     
                 // Prepare the response format
                 $approver = $approvalProcess->user; // Eager loaded approver
@@ -275,26 +314,28 @@ class ApprovalProcessController extends Controller
     
     
                 return [
-                    'id' => $requestForm->id,
-                    'form_type' => $requestForm->form_type,
-                    'form_data' => $requestForm->form_data, // Assuming form_data is JSON
+                    'id' => $memo->id,
+                    'date' =>$memo->date,
+                    'to' => "$to->firstName $to->lastName - $to->position - $branchName - $branchCode ",
+                    'from' => $memo->from,
+                    're' => $memo->re, 
+                    'memo_body' => $memo->memo_body,// Assuming form_data is JSON
                     'status' => $approvalProcess->status, // Include the actual status of the approval process
                     'created_at' => $approvalProcess->created_at,
                     'updated_at' => $approvalProcess->updated_at,
-                    'user_id' => $requestForm->user_id,
-                    'requested_by' => ($requester ? "{$requester->firstName} {$requester->lastName}" : "Unknown"), // Handle null requester
-                    //'approvers_id' => $approvalProcess->user_id, // Include approvers id 
-                        'noted_by' =>  $formattedNotedBy,
-                        'approved_by' => $formattedApprovedBy,
-    
+                    //'user_id' => $memo->user_id,
+                    //'created_by' => ($requester ? "{$requester->firstName} {$requester->lastName}" : "Unknown"), // Handle null requester
+                    'by' =>  $formattedNotedBy,
+                    'approved_by' => $formattedApprovedBy,
+                    'received_by' => $formattedReceivedBy,
                     'pending_approver' => $pendingApprover, // Update pending approver logic
-                    'attachment' => $requestForm->attachment,
+                    'if_receiver' => $receiver, 
                 ];
             })->filter(); // Filter out null values
     
             return response()->json([
                 'message' => 'Approval processes you are involved in',
-                'request_forms' => $transformedApprovalProcesses->values(), // Ensure it's a zero-indexed array
+                'memo' => $transformedApprovalProcesses->values(), // Ensure it's a zero-indexed array
             ], 200);
     
         } catch (\Exception $e) {
@@ -306,5 +347,5 @@ class ApprovalProcessController extends Controller
                 'error' => 'An error occurred while processing your request.',
             ], 500);
         }
-    } */
+    }
 }
