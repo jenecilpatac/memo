@@ -58,8 +58,8 @@ class ApprovalProcessNotification extends Notification
                         'toLastname' =>$this->toLastname,
                         ])
                     ->subject('You have a new memo to approve. Subject: '.$this->memo->re . ' '.now()->format('Y-m-d H:i:s'))
-                    ->line('You have a new request form to approve.')
-                    ->line('Request Form Type : '. $this->approvalProcess->memo->re);
+                    ->line('You have a new memo to approve.')
+                    ->line('Re : '. $this->approvalProcess->memo->re);
     }
 
     /**
@@ -71,8 +71,8 @@ class ApprovalProcessNotification extends Notification
     {
         
         return [
-            'message' => 'You have a new request form to approve',
-            'request_form_id' => $this->approvalProcess->memo->re,
+            'message' => 'You have a new memo to approve',         
+            'memo_id' => $this->approvalProcess->memo->re,
             'created_at' => now()->toDateTimeString(),
             'toFirstname' => $this->toFirstname,
             'toLastname' =>$this->toLastname,
