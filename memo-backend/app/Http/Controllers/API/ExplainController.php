@@ -9,6 +9,7 @@ use App\Models\Explain;
 use App\Models\User;
 use App\Models\Memo;
 use App\Notifications\ExplainApprovalProcessNotification;
+use App\Notifications\ExplainReturnRequestNotification;
 use Illuminate\Support\Facades\DB;
 
 class ExplainController extends Controller
@@ -63,6 +64,7 @@ class ExplainController extends Controller
 
             if ($level === 1) {
                 $firstApprover = $byId; // Store the first approver ID
+
             }
 
             $level++;
@@ -440,10 +442,10 @@ class ExplainController extends Controller
                     $approverFirstname = $approvalProcess->user->firstName;
                     $approverLastname = $approvalProcess->user->lastName;
                     // Notify employee
-                    //$employee->notify(new ReturnRequestNotification($memo, 'disapproved', $firstname, $approverFirstname, $approverLastname, $comment));
+                    //$employee->notify(new ExplainReturnRequestNotification($explain, 'disapproved', $firstname, $approverFirstname, $approverLastname, $comment));
         
                     // Notify previous approvers
-                    $previousApprovalProcesses = ExplainApprovalProcess::where('memo_id', $explain_id)
+                    $previousApprovalProcesses = ExplainApprovalProcess::where('explain_id', $explain_id)
                         ->where('status', 'Approved')
                         ->orderBy('level', 'asc')
                         ->get();
