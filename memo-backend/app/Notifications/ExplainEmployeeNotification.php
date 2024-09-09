@@ -47,7 +47,7 @@ class ExplainEmployeeNotification extends Notification
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage) 
-                    ->view('emails.employee',[
+                    ->view('emails.explain_employee',[
                         'request_form' => $this->memo,
                         'status' => $this->status,
                         'firstname' =>$this->firstname,
