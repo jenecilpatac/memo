@@ -13,6 +13,7 @@ use App\Notifications\ApprovalProcessNotification;
 use App\Notifications\EmployeeNotification;
 use App\Notifications\ReturnRequestNotification;
 use App\Notifications\PreviousReturnRequestNotification;
+use App\Models\Explain;
 
 class ApprovalProcessController extends Controller
 {
@@ -330,6 +331,7 @@ class ApprovalProcessController extends Controller
                     'received_by' => $formattedReceivedBy,
                     'pending_approver' => $pendingApprover, // Update pending approver logic
                     'if_receiver' => $receiver, 
+                    'if_replied' => Explain::where('memo_id', $memo->id)->exists(),
                 ];
             })->filter(); // Filter out null values
     
