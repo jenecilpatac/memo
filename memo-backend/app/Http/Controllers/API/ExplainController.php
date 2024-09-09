@@ -10,6 +10,7 @@ use App\Models\User;
 use App\Models\Memo;
 use App\Notifications\ExplainApprovalProcessNotification;
 use App\Notifications\ExplainReturnRequestNotification;
+use App\Notifications\ExplainEmployeeNotification;
 use Illuminate\Support\Facades\DB;
 
 class ExplainController extends Controller
@@ -218,7 +219,7 @@ class ExplainController extends Controller
                     'user_id' => $explain->user_id,
                     'memo_id' =>$explain->memo_id,
                     'memo_re' => $memoNameRe,
-                    'date' =>$explain->created_at,
+                    'date' =>$explain->date,
                     'header_name' => $explain->header_name,
                     'explain_body' => $explain->explain_body,
                     'status' => $explain->status,
@@ -425,7 +426,7 @@ class ExplainController extends Controller
                         $employee = $explain->user;
                         $firstname = $employee->firstName;
                         // Notify employee
-                        //$employee->notify(new EmployeeNotification($memo, 'approved', $firstname, $memo->form_type));
+                        $employee->notify(new ExplainEmployeeNotification($explain, 'approved', $firstname));
                     }
                 } elseif ($action === 'receive') {
                     $explain->status = 'Received';
@@ -433,7 +434,7 @@ class ExplainController extends Controller
                     $employee = $explain->user;
                     $firstname = $employee->firstName;
                     // Notify employee
-                // $employee->notify(new EmployeeNotification($memo, 'received', $firstname, $memo->form_type));
+                     $employee->notify(new ExplainEmployeeNotification($explain, 'received', $firstname));
                 } else { // disapprove
                     $explain->status = 'Disapproved';
                     $explain->save();
@@ -442,7 +443,7 @@ class ExplainController extends Controller
                     $approverFirstname = $approvalProcess->user->firstName;
                     $approverLastname = $approvalProcess->user->lastName;
                     // Notify employee
-                    //$employee->notify(new ExplainReturnRequestNotification($explain, 'disapproved', $firstname, $approverFirstname, $approverLastname, $comment));
+                    $employee->notify(new ExplainReturnRequestNotification('disapproved', $firstname, $approverFirstname, $approverLastname));
         
                     // Notify previous approvers
                     $previousApprovalProcesses = ExplainApprovalProcess::where('explain_id', $explain_id)
@@ -494,6 +495,8 @@ class ExplainController extends Controller
                 $transformedApprovalProcesses = $approvalProcesses->map(function ($approvalProcess) use ($user_id) {
                     $explain = $approvalProcess->explain;
                     $requester = $explain->user ?? null; // Ensure $explain->user is not null
+                    $memo = Memo::findOrFail($explain->memo_id);
+                    $memoNameRe = $memo->re;
         
                     // Check if previous levels are disapproved or approved
                     $previousLevelsDisapproved = $explain->approvalProcess
@@ -608,9 +611,11 @@ class ExplainController extends Controller
 
                         $createdMemo = ($approvalProcess->user_id === (int) $explain->createdMemo);
 
+
                     return [
                         'id' => $explain->id,
                         'memo_id' =>$explain->memo_id,
+                        'memo_re' => $memoNameRe,
                         'date' => $explain->date,
                         'header_name' => $explain->header_name,
                         'explain_body' => $explain->explain_body,
