@@ -53,7 +53,7 @@ class ExplainApprovalProcessNotification extends Notification
                         'userExplainFirstName' => $this->userExplainFirstName,
                         'userExplainLastName' =>$this->userExplainLastName,
                         ])
-                    ->subject($this->userExplainFirstName.' sent you an explaination for you to check and approve'.now()->format('Y-m-d H:i:s'));
+                    ->subject($this->userExplainFirstName.' sent you an explanation for you to check and approve'.now()->format('Y-m-d H:i:s'));
                     
     }
 
@@ -66,7 +66,7 @@ class ExplainApprovalProcessNotification extends Notification
     {
         
         return [
-            'message' => 'Hi '.$this->userExplainFirstName.' sent you an explaination for you to check and approve',
+            'message' => 'Hi '.$this->userExplainFirstName.' sent you an explanation for you to check and approve',
             'created_at' => now()->toDateTimeString(),
             'userExplainFirstName' => $this->userExplainFirstName,
             'userExplainLastName' =>$this->userExplainLastName,
