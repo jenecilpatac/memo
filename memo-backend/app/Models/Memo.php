@@ -12,6 +12,7 @@ class Memo extends Model
     protected $fillable = [
         'user_id',
         'to',
+        'date',
         'from',
         're',
         'memo_body',

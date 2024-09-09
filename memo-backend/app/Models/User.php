@@ -64,4 +64,19 @@ class User extends Authenticatable
     {
         return $this->belongsTo(Branch::class, 'branch_code');
     }
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
+    public function memo()
+    {
+        return $this->hasMany(Memo::class);
+        
+    }
+    public function explain()
+    {
+        return $this->hasMany(Explain::class);
+
+    }
 }
