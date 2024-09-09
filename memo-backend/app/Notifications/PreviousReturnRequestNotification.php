@@ -55,7 +55,7 @@ class PreviousReturnRequestNotification extends Notification
     {
         return (new MailMessage)
                     ->view('emails.previous_return_request',[
-                        'requestForm' => $this->memo,
+                        'memo' => $this->memo,
                         'prevFirstName' =>$this->prevFirstName,
                         'status' => $this->status,
                         'approverFirstname' =>$this->approverFirstname,

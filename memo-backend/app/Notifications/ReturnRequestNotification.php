@@ -53,7 +53,7 @@ class ReturnRequestNotification extends Notification
         $approvalUrl = route('view.single.request.form.for.approval', ['request_form_id' => $this->memo->id]);
                     return (new MailMessage)
                     ->view('emails.return_request',[
-                        'requestForm' => $this->memo,
+                        'memo' => $this->memo,
                         'firstname' =>$this->firstname,
                         'approvalUrl' => $approvalUrl,
                         'status' =>$this->status,
@@ -63,7 +63,7 @@ class ReturnRequestNotification extends Notification
 
 
                         ])
-                    ->subject('Memo Update - '.$this->memo->form_type.' '. now()->format('Y-m-d H:i:s'))
+                    ->subject('Memo Update - '.$this->memo->re.' '. now()->format('Y-m-d H:i:s'))
                     ->line('Your memo has been returned because it is ' . $this->status);
 
     }
@@ -77,8 +77,8 @@ class ReturnRequestNotification extends Notification
     {
         $approvalUrl = route('view.single.request.form.for.approval', ['request_form_id' => $this->memo->id]);
         return [
-            'message' => 'Your memo'. $this->memo->form_type.' has been returned because it is ' . $this->status . ' by '. $this->approverFirstname.' '. $this->approverLastname,
-            'requestForm' => $this->memo->form_type,
+            'message' => 'Your memo'. $this->memo->re.' has been returned because it is ' . $this->status . ' by '. $this->approverFirstname.' '. $this->approverLastname,
+            'memo_re' => $this->memo->re,
             'status' => $this->status,
             'created_at' => now()->toDateTimeString(),
             'firstname' =>$this->firstname,
