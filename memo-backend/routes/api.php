@@ -4,6 +4,9 @@ use App\Http\Controllers\API\MemoController;
 use App\Http\Controllers\API\UserController;
 use App\Http\Controllers\API\ApprovalProcessController;
 use App\Http\Controllers\API\ApproverController;
+use App\Http\Controllers\API\BranchController;
+use App\Http\Controllers\API\NotificationController;
+use App\Http\Controllers\API\ExplainController;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 
@@ -11,13 +14,59 @@ Route::get('/user', function (Request $request) {
     return $request->user();
 })->middleware('auth:sanctum');
 
+Route::group(['middleware' => ['role:approver']], function () {});
 
 Route::post('register',[UserController::class,"register"]);
 Route::post('login',[UserController::class,"login"]);
 Route::put('update-role',[UserController::class,'updateRole'])->name('update.user.role');
 Route::get('get-role',[UserController::class,'getRole'])->name('get.user.role');
+Route::get("view-branch", [BranchController::class,"viewBranch"])->name('view.branch');
+
+Route::middleware('auth:sanctum')->group(function () {
+Route::get("view-all-users", [UserController::class,"viewAllUsers"])->name('view.all.users');
+Route::get("view-user/{id}", [UserController::class,"viewUser"])->name('view.user');
+Route::post("update-profile/{id}", [UserController::class,"updateProfile"])->name('update.profile');
+Route::post("password/email", [UserController::class,"sendResetLinkEmail"])->name("password.forgot");
+Route::post("password/reset", [UserController::class,"reset"])->name("password.reset");
+Route::put('change-password/{id}', [UserController::class, 'changePassword'])->name('change.password');
+
+//MEMO
+Route::group(['middleware' => ['role:Creator']], function () {
 Route::post('create-memo',[MemoController::class,'createMemo'])->name('create.memo');
-Route::get('view-memo',[MemoController::class,'viewMemo'])->name('view.memo');
-Route::put('memo/{memo_id}/process', [ApprovalProcessController::class, 'processMemo'])->name('process.memo');
-Route::get('get-approvers',[ApproverController::class,'getApprovers'])->name('get.approvers');
-Route::delete('delete-approver',[ApproverController::class,'deleteApprover'])->name('dete.approver');
+Route::post("update-memo/{id}", [MemoController::class,"updateMemo"])->name('update.memo');
+Route::get('view-memo/{currentUserId}',[MemoController::class,'viewMemo'])->name('view.memo'); });
+  
+Route::group(['middleware' => ['role:approver,User']], function () {
+Route::put('memo/{memo_id}/process', [ApprovalProcessController::class, 'processMemo'])->name('process.memo'); 
+Route::get('memo/for-approval/{user_id}', [ApprovalProcessController::class, 'getMemoForApproval'])->name('get.memo.for.approval');});
+
+//EXPLAIN
+Route::group(['middleware' => ['role:User,approver']], function () {
+Route::post('create-explain',[ExplainController::class,'createExplain'])->name('create.explain');
+Route::post("update-explain/{id}", [ExplainController::class,"updateExplain"])->name('update.explain');
+Route::get('view-explain/{currentUserId}',[ExplainController::class,'viewExplain'])->name('view.explain');});
+
+Route::group(['middleware' => ['role:approver,Creator']], function () {
+Route::put('explain/{explain_id}/process', [ExplainController::class, 'processExplain'])->name('process.explain');
+Route::get('explain/for-approval/{user_id}', [ExplainController::class, 'getExplainForApproval'])->name('get.explain.for.approval');});
+
+//APPROVERS
+Route::group(['middleware' => ['role:Creator,User,approver']], function () {
+Route::get('get-approvers/{user_id}',[ApproverController::class,'getApprovers'])->name('get.approvers');
+Route::get('get-explain-approvers/{user_id}',[ApproverController::class,'getExplainApprovers'])->name('get.explain.approvers');});
+
+Route::group(['middleware' => ['role:Admin']], function () {
+Route::delete('delete-approver',[ApproverController::class,'deleteApprover'])->name('delete.approver');
+
+//BRANCH
+Route::post("add-branch", [BranchController::class,"createBranch"])->name('create.branch');
+Route::post("update-branch/{id}", [BranchController::class,"updateBranch"])->name('update.branch');
+Route::delete("delete-branch/{id}", [BranchController::class,"deleteBranch"])->name('delete.branch');});
+
+//NOTIFICATION
+Route::get('notifications/{id}/all', [NotificationController::class, 'getAllNotifications'])->name('get.all.notification');
+Route::get('notifications/{id}', [NotificationController::class, 'getNotifications'])->name('get.notification');
+Route::get('notifications/{id}/unread', [NotificationController::class, 'getUnreadNotifications'])->name('get.unread.notification');
+Route::put('notifications/{id}/mark-as-read', [NotificationController::class, 'markAsRead'])->name('put.mark.as.read.notification');
+Route::get('notifications/{id}/count-unread-notification', [NotificationController::class, 'countUnreadNotifications'])->name('count.unread.notification');
+});
