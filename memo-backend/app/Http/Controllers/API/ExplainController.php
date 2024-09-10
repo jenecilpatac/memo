@@ -41,11 +41,11 @@ class ExplainController extends Controller
             'user_id' => $userID,
             'memo_id' => $memoId,
             'date' => $request->date,
-            'header_name' =>json_encode([
+            'header_name' =>[
                 'name' => 'CHARISSE RAMISO',
                 'position' => 'HR Manager',
                 'branch' => 'SMCT Group of Companies Inc'
-            ]),
+            ],
             'explain_body' => $request->explain_body,
             'noted_by' => json_encode($notedbyid), 
             'createdMemo' => $whocreatedMemoId,

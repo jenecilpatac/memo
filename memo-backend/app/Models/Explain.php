@@ -20,6 +20,10 @@ class Explain extends Model
         'status'
     ];
 
+    protected $casts = [
+        'header_name' => 'array'
+    ];
+
     
     public function user()
     {
