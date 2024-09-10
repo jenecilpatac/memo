@@ -273,6 +273,13 @@ class MemoController extends Controller
         // Find the memo by ID
         $memo = Memo::findOrFail($id);
 
+        $approvalProcesses = ApprovalProcess::where('memo_id', $id)->get();
+
+        $firstApprovalProcess = $approvalProcesses->firstWhere('level', 1);
+        if ($firstApprovalProcess && in_array($firstApprovalProcess->status, ['Approved', 'Disapproved'])) {
+            return response()->json(['message' => 'Memo cannot be updated because the first approver has already acted on it'], 400);
+        }
+
         // Validate request data
         $memovalidate = $request->validate([
             'user_id' => 'required|exists:users,id',
