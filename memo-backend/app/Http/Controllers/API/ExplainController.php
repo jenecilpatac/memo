@@ -249,6 +249,13 @@ class ExplainController extends Controller
     {
         DB::beginTransaction(); // Begin the transaction to ensure data integrity
 
+        $approvalProcesses = ExplainApprovalProcess::where('explain_id', $id)->get();
+
+        $firstApprovalProcess = $approvalProcesses->firstWhere('level', 1);
+        if ($firstApprovalProcess && in_array($firstApprovalProcess->status, ['Approved', 'Disapproved'])) {
+            return response()->json(['message' => 'Memo cannot be updated because the first approver has already acted on it'], 400);
+        }
+
         try {
             // Validate request data
             $explainvalidate = $request->validate([
@@ -268,11 +275,11 @@ class ExplainController extends Controller
                 'user_id' => $explainvalidate['user_id'],
                 'memo_id' => $explainvalidate['memo_id'],
                 'date' => $request->date,
-                'header_name' => json_encode([
+                'header_name' => [
                     'name' => 'CHARISSE RAMISO',
                     'position' => 'HR Manager',
                     'branch' => 'SMCT Group of Companies Inc'
-                ]),
+                ],
                 'explain_body' => $request->explain_body,
                 'noted_by' => json_encode($explainvalidate['noted_by']),
             ]));
