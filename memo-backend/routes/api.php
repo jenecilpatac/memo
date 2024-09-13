@@ -36,23 +36,25 @@ Route::post('create-memo',[MemoController::class,'createMemo'])->name('create.me
 Route::post("update-memo/{id}", [MemoController::class,"updateMemo"])->name('update.memo');
 Route::get('view-memo/{currentUserId}',[MemoController::class,'viewMemo'])->name('view.memo'); });
   
-Route::group(['middleware' => ['role:approver,User']], function () {
+Route::group(['middleware' => ['role:approver,User,BranchHead']], function () {
 Route::put('memo/{memo_id}/process', [ApprovalProcessController::class, 'processMemo'])->name('process.memo'); 
 Route::get('memo/for-approval/{user_id}', [ApprovalProcessController::class, 'getMemoForApproval'])->name('get.memo.for.approval');});
 
 //EXPLAIN
-Route::group(['middleware' => ['role:User,approver']], function () {
+Route::group(['middleware' => ['role:User,BranchHead']], function () {
 Route::post('create-explain',[ExplainController::class,'createExplain'])->name('create.explain');
 Route::post("update-explain/{id}", [ExplainController::class,"updateExplain"])->name('update.explain');
 Route::get('view-explain/{currentUserId}',[ExplainController::class,'viewExplain'])->name('view.explain');});
 
-Route::group(['middleware' => ['role:approver,Creator']], function () {
+Route::group(['middleware' => ['role:BranchHead,Creator']], function () {
 Route::put('explain/{explain_id}/process', [ExplainController::class, 'processExplain'])->name('process.explain');
 Route::get('explain/for-approval/{user_id}', [ExplainController::class, 'getExplainForApproval'])->name('get.explain.for.approval');});
 
 //APPROVERS
-Route::group(['middleware' => ['role:Creator,User,approver']], function () {
-Route::get('get-approvers/{user_id}',[ApproverController::class,'getApprovers'])->name('get.approvers');
+Route::group(['middleware' => ['role:Creator']], function () {
+Route::get('get-approvers/{user_id}',[ApproverController::class,'getApprovers'])->name('get.approvers');});
+
+Route::group(['middleware' => ['role:BranchHead,User']], function () {
 Route::get('get-explain-approvers/{user_id}',[ApproverController::class,'getExplainApprovers'])->name('get.explain.approvers');});
 
 Route::group(['middleware' => ['role:Admin']], function () {
