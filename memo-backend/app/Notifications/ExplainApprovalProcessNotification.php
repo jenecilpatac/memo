@@ -66,7 +66,7 @@ class ExplainApprovalProcessNotification extends Notification
     {
         
         return [
-            'message' => 'Hi '.$this->userExplainFirstName.' sent you an explanation for you to check and approve',
+            'message' => 'Hi '.$this->firstname .' .'.$this->userExplainFirstName.' sent you an explanation for you to check and approve',
             'created_at' => now()->toDateTimeString(),
             'userExplainFirstName' => $this->userExplainFirstName,
             'userExplainLastName' =>$this->userExplainLastName,
