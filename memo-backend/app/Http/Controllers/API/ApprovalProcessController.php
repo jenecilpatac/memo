@@ -14,6 +14,7 @@ use App\Notifications\EmployeeNotification;
 use App\Notifications\ReturnRequestNotification;
 use App\Notifications\PreviousReturnRequestNotification;
 use App\Models\Explain;
+use App\Events\NotificationEvent;
 
 class ApprovalProcessController extends Controller
 {
@@ -32,7 +33,7 @@ class ApprovalProcessController extends Controller
         DB::beginTransaction();
     
         try {
-            $memo = Memo::findOrFail($memo_id);
+            $memo = Memo::findOrFail($memo_id)->load('approvalProcess', 'user');
     
             $approvalProcess = ApprovalProcess::where('memo_id', $memo_id)
                 ->where('user_id', $user_id)
@@ -89,6 +90,13 @@ class ApprovalProcessController extends Controller
                     $requesterFirstname = $createdMemo->firstName;
                     $requesterLastname = $createdMemo->lastName;
                     $nextApprover->notify(new ApprovalProcessNotification($nextApprovalProcess, $firstname,$memo,$requesterFirstname,$requesterLastname));
+
+                    $message = 'You have a new memo to approve';
+                    $date = now();
+                    $type = 'App\Notifications\ApprovalProcessNotification';
+                    $read_at = null;
+                    event(new NotificationEvent($nextApprover->id, $message, $date,$type,$read_at));
+
                 } else {
                     $memo->status = 'Approved';
                     $memo->save();
@@ -96,6 +104,13 @@ class ApprovalProcessController extends Controller
                     $firstname = $createdMemo->firstName;
                     // Notify employee
                     $createdMemo->notify(new EmployeeNotification($memo, 'approved', $firstname, $memo->re));
+
+                    $message = 'Your memo has been approved ';
+                    $date = now();
+                    $type = 'App\Notifications\EmployeeNotification';
+                    $read_at = null;
+                    event(new NotificationEvent($createdMemo->id, $message, $date, $type, $read_at));
+                    
                 }
             } elseif ($action === 'receive') {
                 $memo->status = 'Received';
@@ -104,6 +119,13 @@ class ApprovalProcessController extends Controller
                 $firstname = $createdMemo->firstName;
                 // Notify employee
                $createdMemo->notify(new EmployeeNotification($memo, 'received', $firstname, $memo->form_type));
+
+               $message = 'Your memo has been received ';
+                $date = now();
+                $type = 'App\Notifications\EmployeeNotification';
+                $read_at = null;
+                event(new NotificationEvent($createdMemo->id, $message, $date, $type, $read_at));
+
             } else { // disapprove
                 $memo->status = 'Disapproved';
                 $memo->save();
@@ -113,6 +135,12 @@ class ApprovalProcessController extends Controller
                 $approverLastname = $approvalProcess->user->lastName;
                 // Notify employee
                 $createdMemo->notify(new ReturnRequestNotification($memo, 'disapproved', $firstname, $approverFirstname, $approverLastname, $comment));
+
+                $message = 'This informs you that the memo '. $memo->re.' has been disapproved by ' .$approverFirstname. ' '.$approverLastname;
+                $date = now();
+                $type = 'App\Notifications\ReturnRequestNotification';
+                $read_at = null;
+                event(new NotificationEvent($createdMemo->id, $message, $date, $type, $read_at));
     
                 // Notify previous approvers
                 $previousApprovalProcesses = ApprovalProcess::where('memo_id', $memo_id)
@@ -132,6 +160,12 @@ class ApprovalProcessController extends Controller
                     $requesterLastname = $createdMemo->lastName;
                     // Notify previous approver
                     $previousApprover->notify(new PreviousReturnRequestNotification($memo, 'disapproved', $prevFirstName, $approverFirstname, $approverLastname, $comment, $requesterFirstname, $requesterLastname));
+
+                    $message = 'This informs you that the memo '. $memo->re.' has been disapproved by ' .$approverFirstname. ' '.$approverLastname;
+                    $date = now();
+                    $type = 'App\Notifications\PreviousReturnRequestNotification';
+                    $read_at = null;
+                    event(new NotificationEvent($previousApprover->id, $message, $date, $type, $read_at));
                 }
             }
     
@@ -254,6 +288,7 @@ class ApprovalProcessController extends Controller
                    $approval = $approvalData[$userId] ?? null;
 
                    return [
+                       'user_id' => $user->id,
                        'firstname' => $user->firstName,
                        'lastname' => $user->lastName,
                        'status' => $approval->status ?? '',
@@ -272,6 +307,7 @@ class ApprovalProcessController extends Controller
                    $approval = $approvalData[$userId] ?? null;
 
                    return [
+                       'user_id' => $user->id,
                        'firstname' => $user->firstName,
                        'lastname' => $user->lastName,
                        'status' => $approval->status ?? '',
@@ -289,6 +325,7 @@ class ApprovalProcessController extends Controller
                    $approval = $approvalData[$userId] ?? null;
 
                    return [
+                       'user_id' => $user->id,
                        'firstname' => $user->firstName,
                        'lastname' => $user->lastName,
                        'status' => $approval->status ?? '',
@@ -317,7 +354,13 @@ class ApprovalProcessController extends Controller
                 return [
                     'id' => $memo->id,
                     'date' =>$memo->date,
-                    'to' => "$to->firstName $to->lastName - $to->position - $branchName - $branchCode ",
+                    'to' => [
+                        'user_id' => $to->id,
+                        'firstName' =>$to->firstName,
+                        'lastName' => $to->lastName, 
+                        'position' =>$to->position,
+                        'branch' => $to->branch,
+                        'branch_code' => $branchName ],
                     'from' => $memo->from,
                     're' => $memo->re, 
                     'memo_body' => $memo->memo_body,// Assuming form_data is JSON
@@ -348,6 +391,39 @@ class ApprovalProcessController extends Controller
                 'message' => 'An error occurred',
                 'error' => 'An error occurred while processing your request.',
             ], 500);
+        }
+    }
+
+    public function totalMemoReceived($user_id){
+
+        try{
+    
+             $totalMemo = ApprovalProcess::where('user_id',$user_id)->count();
+             $totalApprovedMemo = ApprovalProcess::where('user_id',$user_id)->where('status','Approved')->count();
+             $totalPendingMemo = ApprovalProcess::where('user_id', $user_id)->whereIn('status', ['Pending', 'Ongoing'])->count();
+             $totalDisapprovedMemo = ApprovalProcess::where('user_id', $user_id)
+                ->where('status', 'Disapproved')
+                ->orWhere('status', 'LIKE', 'Rejected by%')
+                ->count();
+             $totalReceivedMemo = ApprovalProcess::where('user_id',$user_id)->where('status','Received',)->count();
+              
+             return response()->json([
+                'message'=> "Total number of request sent counted successfully",
+                'totalMemo' => $totalMemo,
+                'totalApprovedMemo' => $totalApprovedMemo,
+                'totalPendingMemo' => $totalPendingMemo,
+                'totalDisapprovedMemo' => $totalDisapprovedMemo,
+                'totalReceivedMemo' => $totalReceivedMemo
+
+            
+             ]);
+    
+        }catch(\Exception $e){
+            return response()->json([
+                'message' => "An error occured while counting the total request sent",
+                'error' => $e->getMessage()
+            ]);
+    
         }
     }
 }

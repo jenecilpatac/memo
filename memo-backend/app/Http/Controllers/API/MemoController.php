@@ -11,6 +11,7 @@ use Illuminate\Support\Facades\DB;
 use App\Models\ApprovalProcess;
 use App\Models\User;
 use App\Notifications\ApprovalProcessNotification;
+use App\Events\NotificationEvent;
 
 
 class MemoController extends Controller
@@ -102,6 +103,12 @@ class MemoController extends Controller
     
                     $firstname = $firstApproverUser->firstName;
                     $firstApproverUser->notify(new ApprovalProcessNotification($firstApprovalProcess, $firstname, $memo, $toFirstName, $toLastName));
+                
+                    $message = 'You have a new memo to approve';
+                    $date = now();
+                    $type = 'App\Notifications\ApprovalProcessNotification';
+                    $read_at = null;
+                    event(new NotificationEvent($firstApproverUser->id, $message, $date,$type,$read_at));
                 }
             }
     
@@ -130,7 +137,7 @@ class MemoController extends Controller
 
             // Fetch request forms where user_id matches the current user's ID
             $memos = Memo::where('user_id', $currentUserId)
-                 ->select('id', 'user_id', 'to','re', 'memo_body', 'status', 'by', 'approved_by','created_at','updated_at')
+                 ->select('id', 'user_id', 'to','re', 'from', 'memo_body', 'status', 'by', 'approved_by','created_at','updated_at')
                 ->with('approvalProcess')
                 ->get();
     
@@ -181,6 +188,7 @@ class MemoController extends Controller
                             $approval = $approvalData[$userId] ?? null;
 
                             return [
+                                'user_id' => $user->id,
                                 'firstname' => $user->firstName,
                                 'lastname' => $user->lastName,
                                 'status' => $approval->status ?? '',
@@ -199,6 +207,7 @@ class MemoController extends Controller
                             $approval = $approvalData[$userId] ?? null;
 
                             return [
+                                'user_id' => $user->id,
                                 'firstname' => $user->firstName,
                                 'lastname' => $user->lastName,
                                 'status' => $approval->status ?? '',
@@ -216,6 +225,7 @@ class MemoController extends Controller
                             $approval = $approvalData[$userId] ?? null;
 
                             return [
+                                'user_id' => $user->id,
                                 'firstname' => $user->firstName,
                                 'lastname' => $user->lastName,
                                 'status' => $approval->status ?? '',
@@ -237,7 +247,13 @@ class MemoController extends Controller
                     'id' => $memo->id,
                     'date' =>$memo->created_at,
                     'user_id' => $memo->user_id,
-                    'to' => "$to->firstName $to->lastName - $to->position - $branch - $branchName ",
+                    'to' =>[
+                        'user_id' => $to->id,
+                        'firstName' =>$to->firstName,
+                        'lastName' => $to->lastName, 
+                        'position' =>$to->position,
+                        'branch' => $branch,
+                        'branch_code' => $branchName ],
                     'from' => $memo->from,
                     're' => $memo->re,
                     'memo_body' => $memo->memo_body,
@@ -279,6 +295,14 @@ class MemoController extends Controller
         if ($firstApprovalProcess && in_array($firstApprovalProcess->status, ['Approved', 'Disapproved'])) {
             return response()->json(['message' => 'Memo cannot be updated because the first approver has already acted on it'], 400);
         }
+
+      /*   $date = $request->input('date');
+        $to = $request->input('to');
+        $re = $request->input('re');
+        $memo_body = $request->input('memo_body');
+        $by = $request->input('by');
+        $approved_by = $request->input('approved_by'); 
+        */
 
         // Validate request data
         $memovalidate = $request->validate([
@@ -372,6 +396,12 @@ class MemoController extends Controller
 
                 $firstname = $firstApproverUser->firstName;
                 $firstApproverUser->notify(new ApprovalProcessNotification($firstApprovalProcess, $firstname, $memo, $toFirstName, $toLastName));
+
+                $message = 'You have a new memo to approve';
+                $date = now();
+                $type = 'App\Notifications\ApprovalProcessNotification';
+                $read_at = null;
+                event(new NotificationEvent($firstApproverUser->id, $message, $date,$type,$read_at));
             }
         }
 
@@ -389,6 +419,32 @@ class MemoController extends Controller
         ]);
     }
 }
-   
+public function totalMemoSent($user_id){
+
+    try{
+
+         $MemoSent = Memo::where('user_id',$user_id)->count();
+         $totalApprovedMemo = Memo::where('user_id',$user_id)->where('status','Approved')->count();
+         $totalPendingMemo = Memo::where('user_id', $user_id)->whereIn('status', ['Pending', 'Ongoing'])->count();
+         $totalDisapprovedMemo = Memo::where('user_id',$user_id)->where('status','Disapproved',)->count();
+         $totalReceivedMemo = Memo::where('user_id',$user_id)->where('status','Received',)->count();
+         return response()->json([
+            'message'=> "Total number of request sent counted successfully",
+            'totalRequestSent' =>  $MemoSent,
+            'totalApprovedRequest' => $totalApprovedMemo,
+            'totalPendingRequest' =>  $totalPendingMemo,
+            'totalDisapprovedRequest' =>  $totalDisapprovedMemo,
+            'totalReceivedRequest' =>  $totalReceivedMemo
+        
+         ]);
+
+    }catch(Exception $e){
+        return response()->json([
+            'message' => "An error occured while counting the total request sent",
+            'error' => $e->getMessage()
+        ]);
+
+    }
+}
 
 }
