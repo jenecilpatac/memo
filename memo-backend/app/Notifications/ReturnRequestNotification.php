@@ -50,12 +50,12 @@ class ReturnRequestNotification extends Notification
      */
     public function toMail(object $notifiable): MailMessage
     {
-        $approvalUrl = route('view.single.request.form.for.approval', ['request_form_id' => $this->memo->id]);
+     
                     return (new MailMessage)
                     ->view('emails.return_request',[
                         'memo' => $this->memo,
                         'firstname' =>$this->firstname,
-                        'approvalUrl' => $approvalUrl,
+
                         'status' =>$this->status,
                         'approverFirstname' =>$this->approverFirstname,
                         'approverLastname' =>$this->approverLastname,
@@ -75,14 +75,13 @@ class ReturnRequestNotification extends Notification
      */
     public function toArray(object $notifiable): array
     {
-        $approvalUrl = route('view.single.request.form.for.approval', ['request_form_id' => $this->memo->id]);
+       
         return [
-            'message' => 'Your memo'. $this->memo->re.' has been returned because it is ' . $this->status . ' by '. $this->approverFirstname.' '. $this->approverLastname,
+            'message' => 'The memo'. $this->memo->re.' has been returned because it is ' . $this->status . ' by '. $this->approverFirstname.' '. $this->approverLastname,
             'memo_re' => $this->memo->re,
             'status' => $this->status,
             'created_at' => now()->toDateTimeString(),
             'firstname' =>$this->firstname,
-            'approvalUrl' => $approvalUrl,
             'approverFirstname' =>$this->approverFirstname,
             'approverLastname' =>$this->approverLastname,
             'comment' =>$this->comment
@@ -90,14 +89,5 @@ class ReturnRequestNotification extends Notification
     }
 
 
-   /*  public function toBroadcast($notifiable)
-    {
-        //broadcast(new NotificationEvent($this->toArray($notifiable)));
-        return new BroadcastMessage([
-            'message' => 'Your request has been returned because it is ' . $this->status,
-            'form_type' => $this->requestForm->form_type,
-            'status' => $this->status,
-            'created_at' => now()->toDateTimeString(),
-        ]);
-    } */
+
 }

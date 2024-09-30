@@ -81,8 +81,8 @@ class PreviousReturnRequestNotification extends Notification
     public function toArray(object $notifiable): array
     {
         return [
-            'message' => 'This informs you that the memo '. $this->memo->form_type.' requested by ' .$this->requesterFirstname .' ' .$this->requesterLastname.' has been'. $this->status. ' by ' .$this->approverFirstname. ' '.$this->approverLastname,
-            'memo' => $this->memo->form_type,
+            'message' => 'This informs you that the memo '. $this->memo->re.' has been'. $this->status. ' by ' .$this->approverFirstname. ' '.$this->approverLastname,
+            'memo' => $this->memo->re,
             'status' => $this->status,
             'prevFirstName' =>$this->prevFirstName,
             'approverFirstname' =>$this->approverFirstname,
