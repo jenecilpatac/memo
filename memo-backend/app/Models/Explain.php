@@ -17,7 +17,9 @@ class Explain extends Model
         'explain_body',
         'noted_by',
         'createdMemo',
-        'status'
+        'status',
+        'branch_code',
+        'explain_code'
     ];
 
     protected $casts = [

@@ -17,7 +17,9 @@ class Memo extends Model
         're',
         'memo_body',
         'by',
-        'approved_by'
+        'approved_by',
+        'branch_code',
+        'memo_code'
     ];
 
     
