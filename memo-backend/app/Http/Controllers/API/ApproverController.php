@@ -20,6 +20,7 @@ class ApproverController extends Controller
             // Fetch approvers from the HO branch, excluding the requester if they are an approver
             $HOapprovers = User::where('branch_code', $HObranchID)
                 ->where('role', 'approver')
+                ->whereIn('position', ['HR Manager','Managing Director'])
                 ->where('id', '!=', $userId)
                 ->select('id', 'firstName', 'lastName', 'role', 'position', 'branch_code')
                 ->get();
@@ -71,7 +72,7 @@ class ApproverController extends Controller
             // Fetch approvers from the branch, excluding the requester if they are an approver
             $BranchHead = User::select('id', 'firstName', 'lastName', 'role', 'position', 'branch_code')
             ->where('branch_code', $user->branch_code)
-            ->where('role', 'approver')
+            ->where('role', 'branchHead')      
             ->where('position', 'Branch Supervisor/Manager')
             ->where('id', '!=', $userId)
             ->get();
