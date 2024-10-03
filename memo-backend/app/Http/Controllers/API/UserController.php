@@ -14,6 +14,7 @@ use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Mail;
 use App\Mail\ResetPasswordMail;
+use App\Models\Branch;
 
 class UserController extends Controller
 {
@@ -43,7 +44,7 @@ public function register(Request $request)
                 "HR Staff",
                 "IT Staff",
                 "IT/Automation Manager",
-                "Juinor Web Developer",
+                "Junior Web Developer",
                 "Managing Director",
                 "Payroll Manager",
                 "Payroll Staff",
@@ -225,12 +226,29 @@ public function getRole($id)
 public function viewAllUsers()
 {
     try {
+        $users = User::with('branch:id,branch_code,branch')->select('id', 'firstName', 'lastName', 'branch_code','email','userName','role','position','contact','employee_id')->get();
 
-        $users = User::select('id', 'firstName', 'lastName')->get();
+        $allUsers = $users->map(function ($user) {
+    
+            return [
+                'id' => $user->id,
+                'firstName' => $user->firstName,
+                'lastName' => $user->lastName,
+                'branch_id' => $user->branch_code,
+                'branch_code' => $user->branch ? $user->branch->branch_code : null,
+                'branch' =>  $user->branch ? $user->branch->branch : null,
+                'email' => $user->email,
+                'userName' => $user->userName,
+                'role' => $user->role,
+                'position' => $user->position,
+                'contact' => $user->contact,
+                'employee_id' => $user->employee_id, 
+            ];
+        });
 
         return response()->json([
             'message' => 'Users retrieved successfully',
-            'data' => $users
+            'data' => $allUsers
         ], 200);
     } catch (Exception $e) {
         return response()->json([
@@ -297,6 +315,28 @@ public function updateProfile(Request $request, $id)
                 'error' => $e->getMessage()
             ], 500);
         }
+    }
+
+    public function updateProfilePic(Request $request, $id)
+    {
+        $validatedData = $request->validate([ 
+            'profile_picture' => 'nullable|image', 
+        ]);
+    
+        $user = User::find($id);
+        if (!$user) {
+            return response()->json(['message' => 'User not found'], 404);
+        }
+    
+        if ($request->hasFile('profile_picture')) {
+            $file = $request->file('profile_picture');
+            $path = $file->store('profile_pictures', 'public');
+            $user->profile_picture = $path;
+        }
+    
+        $user->save();
+    
+        return response()->json(['message' => 'Profile picture updated successfully'], 200);
     }
 
     
