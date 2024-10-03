@@ -35,6 +35,18 @@ class MemoController extends Controller
             $byIds = $memovalidate['by'];
             $approvedByIds = $memovalidate['approved_by'];
     
+            $userBranch = DB::table('users')->select('branch_code')->where('id', $userID)->first();
+        
+            if (!$userBranch) {
+                return response()->json([
+                    'message' => 'User not found',
+                ], 404);
+            }
+        
+            $branchCode = $userBranch->branch_code;
+            
+            $uniqueCode = $this->generateUniqueCode($branchCode);
+    
             // Create a new memo
             $memo = Memo::create([
                 'user_id' => $userID,
@@ -45,21 +57,25 @@ class MemoController extends Controller
                 'memo_body' => $request->memo_body,
                 'by' => json_encode($byIds),
                 'approved_by' => json_encode($approvedByIds),
+                'branch_code' => $branchCode,
+                'memo_code' => $uniqueCode
             ]);
     
-            // Initialize level
+               // Initialize level for approval process
             $level = 1;
-            $firstApprover = null;
-    
-            // Create approval processes for 'by' users
+            $approvalProcesses = [];
+
+            // Batch process for 'by' users
             foreach ($byIds as $byId) {
-                ApprovalProcess::create([
+                $approvalProcesses[] = [
                     'user_id' => $byId,
                     'memo_id' => $memo->id,
                     'level' => $level,
                     'status' => 'Pending',
-                ]);
-    
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
+
                 if ($level === 1) {
                     $firstApprover = $byId; // Store the first approver ID
                 }
@@ -67,24 +83,31 @@ class MemoController extends Controller
                 $level++;
             }
     
-            // Create approval processes for 'approved_by' users
+            // Batch process for 'approved_by' users
             foreach ($approvedByIds as $approvedById) {
-                ApprovalProcess::create([
+                $approvalProcesses[] = [
                     'user_id' => $approvedById,
                     'memo_id' => $memo->id,
                     'level' => $level,
                     'status' => 'Pending',
-                ]);
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ];
                 $level++;
             }
-    
-            // Create approval process for 'to' user
-            ApprovalProcess::create([
+
+            // Add 'to' user in approval process
+            $approvalProcesses[] = [
                 'user_id' => $toUserId,
                 'memo_id' => $memo->id,
                 'level' => $level,
                 'status' => 'Pending',
-            ]);
+                'created_at' => now(),
+                'updated_at' => now(),
+            ];
+
+            // Insert all approval processes at once
+            ApprovalProcess::insert($approvalProcesses);
     
             // Retrieve requester's first name and last name
             $to = User::find($toUserId);
@@ -126,6 +149,24 @@ class MemoController extends Controller
             ]);
         }
     }
+    private function generateUniqueCode($branchId)
+    {
+    
+        $branch = DB::table('branches')->select('branch_code')->where('id', $branchId)->first();
+
+        if (!$branch) {
+            throw new Exception('Branch not found');
+        }
+
+        $branchCode = $branch->branch_code; 
+
+        $count = Memo::where('branch_code', $branchCode)->count();
+
+        $nextNumber = str_pad($count + 1, 7, '0', STR_PAD_LEFT);
+
+        return $branchCode . '-' . $nextNumber;
+    }
+    
     
 
     public function viewMemo($currentUserId)
