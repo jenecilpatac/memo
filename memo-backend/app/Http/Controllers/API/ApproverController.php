@@ -72,7 +72,7 @@ class ApproverController extends Controller
             // Fetch approvers from the branch, excluding the requester if they are an approver
             $BranchHead = User::select('id', 'firstName', 'lastName', 'role', 'position', 'branch_code')
             ->where('branch_code', $user->branch_code)
-            ->where('role', 'branchHead')      
+            ->where('role', 'BranchHead')      
             ->where('position', 'Branch Supervisor/Manager')
             ->where('id', '!=', $userId)
             ->get();
