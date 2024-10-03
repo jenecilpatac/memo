@@ -12,6 +12,7 @@ use App\Notifications\ExplainApprovalProcessNotification;
 use App\Notifications\ExplainReturnRequestNotification;
 use App\Notifications\ExplainEmployeeNotification;
 use Illuminate\Support\Facades\DB;
+use App\Events\NotificationEvent;
 
 class ExplainController extends Controller
 {
@@ -37,6 +38,18 @@ class ExplainController extends Controller
         $memo = Memo::findOrFail($memoId);
         $whocreatedMemoId = $memo->user_id;        
 
+        $userBranch = DB::table('users')->select('branch_code')->where('id', $userID)->first();
+        
+            if (!$userBranch) {
+                return response()->json([
+                    'message' => 'User not found',
+                ], 404);
+            }
+        
+        $branchCode = $userBranch->branch_code; 
+        
+        $uniqueCode = $this->generateUniqueCode($branchCode);
+
         $explain = Explain::create([
             'user_id' => $userID,
             'memo_id' => $memoId,
@@ -49,6 +62,8 @@ class ExplainController extends Controller
             'explain_body' => $request->explain_body,
             'noted_by' => json_encode($notedbyid), 
             'createdMemo' => $whocreatedMemoId,
+            'branch_code' => $branchCode,
+            'explain_code' => $uniqueCode
         ]);
 
         // Initialize level
@@ -96,6 +111,13 @@ class ExplainController extends Controller
 
                 $firstname = $firstApproverUser->firstName;
                 $firstApproverUser->notify(new ExplainApprovalProcessNotification($firstApprovalProcess, $firstname, $userExplainFirstName, $userExplainLastName));
+
+                $message = 'You have an explaination to check and approve';
+                $date = now();
+                $type = 'App\Notifications\ExplainApprovalProcessNotification';
+                $read_at = null;
+                event(new NotificationEvent($firstApproverUser->id, $message, $date,$type,$read_at));
+
             }
         }
 
@@ -114,6 +136,25 @@ class ExplainController extends Controller
     }
 }
 
+private function generateUniqueCode($branchId)
+{
+
+    $branch = DB::table('branches')->select('branch_code')->where('id', $branchId)->first();
+
+    if (!$branch) {
+        throw new \Exception('Branch not found');
+    }
+
+    $branchCode = $branch->branch_code; 
+
+    $count = Memo::where('branch_code', $branchCode)->count();
+
+    $nextNumber = str_pad($count + 1, 7, '0', STR_PAD_LEFT);
+    
+    return $branchCode . '-' . $nextNumber;
+}
+
+
 
     public function viewExplain($currentUserId)
     {
@@ -123,7 +164,7 @@ class ExplainController extends Controller
 
             // Fetch request forms where user_id matches the current user's ID
             $explains = Explain::where('user_id', $currentUserId)
-                ->select('id', 'user_id', 'date','memo_id', 'header_name', 'explain_body', 'status','noted_by','createdMemo')
+                ->select('id', 'user_id', 'date','memo_id', 'header_name', 'explain_body', 'status','noted_by','createdMemo','branch_code','explain_code')
                 ->with('approvalProcess')
                 ->get();
 
@@ -169,6 +210,7 @@ class ExplainController extends Controller
                             $approval = $approvalData[$userId] ?? null;
 
                             return [
+                                'user_id' => $user->id,
                                 'firstname' => $user->firstName,
                                 'lastname' => $user->lastName,
                                 'status' => $approval->status ?? '',
@@ -198,6 +240,7 @@ class ExplainController extends Controller
                         $approval = $approvalData[$userId] ?? null;
 
                         return [
+                            'user_id' => $user->id,
                             'firstname' => $user->firstName,
                             'lastname' => $user->lastName,
                             'position' => $user->position,
@@ -229,6 +272,8 @@ class ExplainController extends Controller
                     'pending_approver' => $pendingApprover ? [
                         'approver_name' => "{$pendingApprover->firstName} {$pendingApprover->lastName}",
                     ] : "No Pending Approver",
+                    'branch_code'=> $explain->branch_code,
+                    'explain_code' => $explain->explain_code,
                     'if_whoExplains' => $whoExplains
                 ];
             });
@@ -253,8 +298,12 @@ class ExplainController extends Controller
 
         $firstApprovalProcess = $approvalProcesses->firstWhere('level', 1);
         if ($firstApprovalProcess && in_array($firstApprovalProcess->status, ['Approved', 'Disapproved'])) {
-            return response()->json(['message' => 'Memo cannot be updated because the first approver has already acted on it'], 400);
+            return response()->json(['message' => 'Explain cannot be updated because the first approver has already acted on it'], 400);
         }
+
+      /*$date = $request->input('date');
+        $explain_body = $request->input('explain_body');
+        $noted_by = $request->input('noted_by'); */
 
         try {
             // Validate request data
@@ -337,6 +386,12 @@ class ExplainController extends Controller
                     $userExplain->firstName, 
                     $userExplain->lastName
                 ));
+
+                $message = 'You have an explaination to check and approve';
+                $date = now();
+                $type = 'App\Notifications\ExplainApprovalProcessNotification';
+                $read_at = null;
+                event(new NotificationEvent($firstApproverUser->id, $message, $date,$type,$read_at));
             }
 
             DB::commit(); // Commit the transaction
@@ -370,7 +425,7 @@ class ExplainController extends Controller
             DB::beginTransaction();
         
             try {
-                $explain = Explain::findOrFail($explain_id);
+                $explain = Explain::findOrFail($explain_id)->load('approvalProcess', 'user');
         
                 $approvalProcess = ExplainApprovalProcess::where('explain_id', $explain_id)
                     ->where('user_id', $user_id)
@@ -427,6 +482,13 @@ class ExplainController extends Controller
                         $requesterFirstname = $employee->firstName;
                         $requesterLastname = $employee->lastName;
                         $nextApprover->notify(new ExplainApprovalProcessNotification($nextApprovalProcess, $firstname,$requesterFirstname,$requesterLastname));
+
+                        $message = 'You have an explanation to check and approve';
+                        $date = now();
+                        $type = 'App\Notifications\ExplainApprovalProcessNotification';
+                        $read_at = null;
+                        event(new NotificationEvent($nextApprover->id, $message, $date,$type,$read_at));
+
                     } else {
                         $explain->status = 'Approved';
                         $explain->save();
@@ -434,6 +496,12 @@ class ExplainController extends Controller
                         $firstname = $employee->firstName;
                         // Notify employee
                         $employee->notify(new ExplainEmployeeNotification($explain, 'approved', $firstname));
+
+                        $message = 'Your explanation has been approved';
+                        $date = now();
+                        $type = 'App\Notifications\ExplainEmployeeNotification';
+                        $read_at = null;
+                        event(new NotificationEvent($employee->id, $message, $date,$type,$read_at));
                     }
                 } elseif ($action === 'receive') {
                     $explain->status = 'Received';
@@ -442,6 +510,13 @@ class ExplainController extends Controller
                     $firstname = $employee->firstName;
                     // Notify employee
                      $employee->notify(new ExplainEmployeeNotification($explain, 'received', $firstname));
+
+                    $message = 'Your explanation has been received by the HR Department';
+                    $date = now();
+                    $type = 'App\Notifications\ExplainEmployeeNotification';
+                    $read_at = null;
+                    event(new NotificationEvent($employee->id, $message, $date,$type,$read_at));
+
                 } else { // disapprove
                     $explain->status = 'Disapproved';
                     $explain->save();
@@ -451,6 +526,12 @@ class ExplainController extends Controller
                     $approverLastname = $approvalProcess->user->lastName;
                     // Notify employee
                     $employee->notify(new ExplainReturnRequestNotification('disapproved', $firstname, $approverFirstname, $approverLastname));
+
+                    $message = 'Your explanation has been disapproved';
+                    $date = now();
+                    $type = 'App\Notifications\ExplainReturnRequestNotification';
+                    $read_at = null;
+                    event(new NotificationEvent($employee->id, $message, $date,$type,$read_at));
         
                     // Notify previous approvers
                     $previousApprovalProcesses = ExplainApprovalProcess::where('explain_id', $explain_id)
@@ -648,6 +729,64 @@ class ExplainController extends Controller
                     'message' => 'An error occurred',
                     'error' => $e->getMessage(), // Include the actual error message for debugging
                 ], 500);
+            }
+        }
+    public function totalExplainSent($user_id){
+
+        try{
+    
+                $ExplainSent = Explain::where('user_id',$user_id)->count();
+                $totalApprovedExplain = Explain::where('user_id',$user_id)->where('status','Approved')->count();
+                $totalPendingExplain = Explain::where('user_id', $user_id)->whereIn('status', ['Pending', 'Ongoing'])->count();
+                $totalDisapprovedExplain = Explain::where('user_id',$user_id)->where('status','Disapproved',)->count();
+                return response()->json([
+                'message'=> "Total number of request sent counted successfully",
+                'totalExplainSent' => $ExplainSent,
+                'totalApprovedExplain' => $totalApprovedExplain,
+                'totalPendingExplain' => $totalPendingExplain,
+                'totalDisapprovedExplain' => $totalDisapprovedExplain
+            
+                ]);
+    
+        }catch(\Exception $e){
+            return response()->json([
+                'message' => "An error occured while counting the total request sent",
+                'error' => $e->getMessage()
+            ]);
+    
+        }
+    }
+
+    public function totalMemoReceived($user_id){
+
+        try{
+    
+             $totalExplain = ExplainApprovalProcess::where('user_id',$user_id)->count();
+             $totalApprovedExplain = ExplainApprovalProcess::where('user_id',$user_id)->where('status','Approved')->count();
+             $totalPendingExplain = ExplainApprovalProcess::where('user_id', $user_id)->whereIn('status', ['Pending', 'Ongoing'])->count();
+             $totalDisapprovedExplain = ExplainApprovalProcess::where('user_id', $user_id)
+                ->where('status', 'Disapproved')
+                ->orWhere('status', 'LIKE', 'Rejected by%')
+                ->count();
+             $totalReceivedExplain = ExplainApprovalProcess::where('user_id',$user_id)->where('status','Received',)->count();
+              
+             return response()->json([
+                'message'=> "Total number of request sent counted successfully",
+                'totalExplain' => $totalExplain,
+                'totalApprovedExplain' => $totalApprovedExplain,
+                'totalPendingExplain' => $totalPendingExplain,
+                'totalDisapprovedExplain' => $totalDisapprovedExplain,
+                'totalReceivedExplain' => $totalReceivedExplain
+
+            
+             ]);
+    
+        }catch(\Exception $e){
+            return response()->json([
+                'message' => "An error occured while counting the total request sent",
+                'error' => $e->getMessage()
+            ]);
+    
             }
         }
     
