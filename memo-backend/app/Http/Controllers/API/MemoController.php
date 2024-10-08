@@ -126,12 +126,8 @@ class MemoController extends Controller
     
                     $firstname = $firstApproverUser->firstName;
                     $firstApproverUser->notify(new ApprovalProcessNotification($firstApprovalProcess, $firstname, $memo, $toFirstName, $toLastName));
-                
-                    $message = 'You have a new memo to approve';
-                    $date = now();
-                    $type = 'App\Notifications\ApprovalProcessNotification';
-                    $read_at = null;
-                    event(new NotificationEvent($firstApproverUser->id, $message, $date,$type,$read_at));
+               
+                    event(new NotificationEvent(Auth::user()->id, $firstApproverUser->id));
                 }
             }
     
@@ -438,11 +434,8 @@ class MemoController extends Controller
                 $firstname = $firstApproverUser->firstName;
                 $firstApproverUser->notify(new ApprovalProcessNotification($firstApprovalProcess, $firstname, $memo, $toFirstName, $toLastName));
 
-                $message = 'You have a new memo to approve';
-                $date = now();
-                $type = 'App\Notifications\ApprovalProcessNotification';
-                $read_at = null;
-                event(new NotificationEvent($firstApproverUser->id, $message, $date,$type,$read_at));
+              
+                event(new NotificationEvent(Auth::user()->id, $firstApproverUser->id));
             }
         }
 
