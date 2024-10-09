@@ -476,4 +476,32 @@ public function updateProfile(Request $request, $id)
         }
     }
 
+    public function viewProfile()
+    {
+        try {
+
+            $user = Auth::user()->with('branch')->get();
+
+            return response()->json([
+                'message' => 'Users retrieved successfully',
+                'data' => $user,
+                'status' => true,
+
+            ], 200);
+
+        } catch (Exception $e) {
+
+            return response()->json([
+                'message' => 'Users not found',
+            ], 404);
+
+        } catch (Exception $e) {
+
+            return response()->json([
+                'message' => 'An error occurred while retrieving the user',
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
+
 }

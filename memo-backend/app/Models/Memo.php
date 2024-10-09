@@ -19,7 +19,8 @@ class Memo extends Model
         'by',
         'approved_by',
         'branch_code',
-        'memo_code'
+        'memo_code',
+        'status',
     ];
 
     

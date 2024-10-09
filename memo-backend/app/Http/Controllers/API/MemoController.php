@@ -154,9 +154,9 @@ class MemoController extends Controller
             throw new Exception('Branch not found');
         }
 
-        $branchCode = $branch->branch_code; 
+        $branchCode = $branch->branch_code;
 
-        $count = Memo::where('branch_code', $branchCode)->count();
+        $count = Memo::where('branch_code', $branchId)->count();
 
         $nextNumber = str_pad($count + 1, 7, '0', STR_PAD_LEFT);
 
@@ -174,7 +174,7 @@ class MemoController extends Controller
 
             // Fetch request forms where user_id matches the current user's ID
             $memos = Memo::where('user_id', $currentUserId)
-                 ->select('id', 'user_id', 'to','re', 'from', 'memo_body', 'status', 'by', 'approved_by','created_at','updated_at')
+                 ->select('id', 'user_id', 'to','re', 'from', 'memo_body', 'status', 'by', 'approved_by','created_at','updated_at','memo_code')
                 ->with('approvalProcess')
                 ->get();
     
@@ -292,8 +292,10 @@ class MemoController extends Controller
                         'branch' => $branch,
                         'branch_code' => $branchName ],
                     'from' => $memo->from,
+                    'branch' =>$branchName,
                     're' => $memo->re,
                     'memo_body' => $memo->memo_body,
+                    'memo_code' => $memo->memo_code,
                     'status' => $memo->status,
                     'by' =>  $formattedNotedBy,
                     'approved_by' => $formattedApprovedBy,
@@ -366,6 +368,7 @@ class MemoController extends Controller
             'memo_body' => $request->memo_body,
             'by' => json_encode($byIds),
             'approved_by' => json_encode($approvedByIds),
+            'status' => 'Pending',
         ]);
 
         // Delete old approval processes

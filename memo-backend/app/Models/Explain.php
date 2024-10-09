@@ -19,7 +19,8 @@ class Explain extends Model
         'createdMemo',
         'status',
         'branch_code',
-        'explain_code'
+        'explain_code',
+        'status'
     ];
 
     protected $casts = [
@@ -35,5 +36,10 @@ class Explain extends Model
     public function approvalProcess()
     {
         return $this->hasMany(ExplainApprovalProcess::class);
+    }
+
+    public function branch()
+    {
+        return $this->belongsTo(Branch::class);
     }
 }

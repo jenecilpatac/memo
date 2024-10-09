@@ -8,11 +8,13 @@ use App\Models\ExplainApprovalProcess;
 use App\Models\Explain;
 use App\Models\User;
 use App\Models\Memo;
+use App\Models\Branch;
 use App\Notifications\ExplainApprovalProcessNotification;
 use App\Notifications\ExplainReturnRequestNotification;
 use App\Notifications\ExplainEmployeeNotification;
 use Illuminate\Support\Facades\DB;
 use App\Events\NotificationEvent;
+use Illuminate\Support\Facades\Auth;
 
 class ExplainController extends Controller
 {
@@ -112,11 +114,8 @@ class ExplainController extends Controller
                 $firstname = $firstApproverUser->firstName;
                 $firstApproverUser->notify(new ExplainApprovalProcessNotification($firstApprovalProcess, $firstname, $userExplainFirstName, $userExplainLastName));
 
-                $message = 'You have an explaination to check and approve';
-                $date = now();
-                $type = 'App\Notifications\ExplainApprovalProcessNotification';
-                $read_at = null;
-                event(new NotificationEvent($firstApproverUser->id, $message, $date,$type,$read_at));
+              
+                event(new NotificationEvent(Auth::user()->id,$firstApproverUser->id));
 
             }
         }
@@ -147,7 +146,7 @@ private function generateUniqueCode($branchId)
 
     $branchCode = $branch->branch_code; 
 
-    $count = Memo::where('branch_code', $branchCode)->count();
+    $count = Memo::where('branch_code', $branchId)->count();
 
     $nextNumber = str_pad($count + 1, 7, '0', STR_PAD_LEFT);
     
@@ -255,6 +254,7 @@ private function generateUniqueCode($branchId)
                     ->where('status', 'Pending')
                     ->orderBy('level')
                     ->first()?->user;
+                
                     
 
                 return [
@@ -272,7 +272,7 @@ private function generateUniqueCode($branchId)
                     'pending_approver' => $pendingApprover ? [
                         'approver_name' => "{$pendingApprover->firstName} {$pendingApprover->lastName}",
                     ] : "No Pending Approver",
-                    'branch_code'=> $explain->branch_code,
+                    'branch'=> Branch::select('branch_code')->where('id',$explain->branch_code)->first(),
                     'explain_code' => $explain->explain_code,
                     'if_whoExplains' => $whoExplains
                 ];
@@ -331,6 +331,7 @@ private function generateUniqueCode($branchId)
                 ],
                 'explain_body' => $request->explain_body,
                 'noted_by' => json_encode($explainvalidate['noted_by']),
+                'status' => 'Pending',
             ]));
 
             // Initialize level and approval process
@@ -387,11 +388,8 @@ private function generateUniqueCode($branchId)
                     $userExplain->lastName
                 ));
 
-                $message = 'You have an explaination to check and approve';
-                $date = now();
-                $type = 'App\Notifications\ExplainApprovalProcessNotification';
-                $read_at = null;
-                event(new NotificationEvent($firstApproverUser->id, $message, $date,$type,$read_at));
+
+                event(new NotificationEvent(Auth::user()->id, $firstApproverUser->id));
             }
 
             DB::commit(); // Commit the transaction
@@ -483,11 +481,7 @@ private function generateUniqueCode($branchId)
                         $requesterLastname = $employee->lastName;
                         $nextApprover->notify(new ExplainApprovalProcessNotification($nextApprovalProcess, $firstname,$requesterFirstname,$requesterLastname));
 
-                        $message = 'You have an explanation to check and approve';
-                        $date = now();
-                        $type = 'App\Notifications\ExplainApprovalProcessNotification';
-                        $read_at = null;
-                        event(new NotificationEvent($nextApprover->id, $message, $date,$type,$read_at));
+                        event(new NotificationEvent(Auth::user()->id, $nextApprover->id, ));
 
                     } else {
                         $explain->status = 'Approved';
@@ -497,11 +491,7 @@ private function generateUniqueCode($branchId)
                         // Notify employee
                         $employee->notify(new ExplainEmployeeNotification($explain, 'approved', $firstname));
 
-                        $message = 'Your explanation has been approved';
-                        $date = now();
-                        $type = 'App\Notifications\ExplainEmployeeNotification';
-                        $read_at = null;
-                        event(new NotificationEvent($employee->id, $message, $date,$type,$read_at));
+                        event(new NotificationEvent(Auth::user()->id, $employee->id));
                     }
                 } elseif ($action === 'receive') {
                     $explain->status = 'Received';
@@ -511,11 +501,8 @@ private function generateUniqueCode($branchId)
                     // Notify employee
                      $employee->notify(new ExplainEmployeeNotification($explain, 'received', $firstname));
 
-                    $message = 'Your explanation has been received by the HR Department';
-                    $date = now();
-                    $type = 'App\Notifications\ExplainEmployeeNotification';
-                    $read_at = null;
-                    event(new NotificationEvent($employee->id, $message, $date,$type,$read_at));
+                
+                    event(new NotificationEvent(Auth::user()->id, $employee->id));
 
                 } else { // disapprove
                     $explain->status = 'Disapproved';
@@ -527,11 +514,7 @@ private function generateUniqueCode($branchId)
                     // Notify employee
                     $employee->notify(new ExplainReturnRequestNotification('disapproved', $firstname, $approverFirstname, $approverLastname));
 
-                    $message = 'Your explanation has been disapproved';
-                    $date = now();
-                    $type = 'App\Notifications\ExplainReturnRequestNotification';
-                    $read_at = null;
-                    event(new NotificationEvent($employee->id, $message, $date,$type,$read_at));
+                    event(new NotificationEvent(Auth::user()->id, $employee->id));
         
                     // Notify previous approvers
                     $previousApprovalProcesses = ExplainApprovalProcess::where('explain_id', $explain_id)
@@ -715,7 +698,8 @@ private function generateUniqueCode($branchId)
                         'is_createdMemo' =>$createdMemo,
                         'created_at' => $approvalProcess->created_at,
                         'updated_at' => $approvalProcess->updated_at,
-                        'if_receiver' => ($approvalProcess->user_id == $explain->createdMemo),                    
+                        'if_receiver' => ($approvalProcess->user_id == $explain->createdMemo),  
+                        'branch' => Branch::select('branch_code')->where('id',$explain->branch_code)->first(),                 
                     ];
                 })->filter(); // Filter out null values
         

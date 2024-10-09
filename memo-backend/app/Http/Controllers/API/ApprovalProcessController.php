@@ -15,6 +15,7 @@ use App\Notifications\ReturnRequestNotification;
 use App\Notifications\PreviousReturnRequestNotification;
 use App\Models\Explain;
 use App\Events\NotificationEvent;
+use Illuminate\Support\Facades\Auth;
 
 class ApprovalProcessController extends Controller
 {
@@ -91,11 +92,8 @@ class ApprovalProcessController extends Controller
                     $requesterLastname = $createdMemo->lastName;
                     $nextApprover->notify(new ApprovalProcessNotification($nextApprovalProcess, $firstname,$memo,$requesterFirstname,$requesterLastname));
 
-                    $message = 'You have a new memo to approve';
-                    $date = now();
-                    $type = 'App\Notifications\ApprovalProcessNotification';
-                    $read_at = null;
-                    event(new NotificationEvent($nextApprover->id, $message, $date,$type,$read_at));
+    
+                    event(new NotificationEvent(Auth::user()->id, $nextApprover->id));
 
                 } else {
                     $memo->status = 'Approved';
@@ -105,11 +103,7 @@ class ApprovalProcessController extends Controller
                     // Notify employee
                     $createdMemo->notify(new EmployeeNotification($memo, 'approved', $firstname, $memo->re));
 
-                    $message = 'Your memo has been approved ';
-                    $date = now();
-                    $type = 'App\Notifications\EmployeeNotification';
-                    $read_at = null;
-                    event(new NotificationEvent($createdMemo->id, $message, $date, $type, $read_at));
+                    event(new NotificationEvent(Auth::user()->id, $createdMemo->id));
                     
                 }
             } elseif ($action === 'receive') {
@@ -120,11 +114,8 @@ class ApprovalProcessController extends Controller
                 // Notify employee
                $createdMemo->notify(new EmployeeNotification($memo, 'received', $firstname, $memo->form_type));
 
-               $message = 'Your memo has been received ';
-                $date = now();
-                $type = 'App\Notifications\EmployeeNotification';
-                $read_at = null;
-                event(new NotificationEvent($createdMemo->id, $message, $date, $type, $read_at));
+         
+                event(new NotificationEvent(Auth::user()->id, $createdMemo->id));
 
             } else { // disapprove
                 $memo->status = 'Disapproved';
@@ -136,11 +127,8 @@ class ApprovalProcessController extends Controller
                 // Notify employee
                 $createdMemo->notify(new ReturnRequestNotification($memo, 'disapproved', $firstname, $approverFirstname, $approverLastname, $comment));
 
-                $message = 'This informs you that the memo '. $memo->re.' has been disapproved by ' .$approverFirstname. ' '.$approverLastname;
-                $date = now();
-                $type = 'App\Notifications\ReturnRequestNotification';
-                $read_at = null;
-                event(new NotificationEvent($createdMemo->id, $message, $date, $type, $read_at));
+            
+                event(new NotificationEvent(Auth::user()->id, $createdMemo->id));
     
                 // Notify previous approvers
                 $previousApprovalProcesses = ApprovalProcess::where('memo_id', $memo_id)
@@ -161,11 +149,7 @@ class ApprovalProcessController extends Controller
                     // Notify previous approver
                     $previousApprover->notify(new PreviousReturnRequestNotification($memo, 'disapproved', $prevFirstName, $approverFirstname, $approverLastname, $comment, $requesterFirstname, $requesterLastname));
 
-                    $message = 'This informs you that the memo '. $memo->re.' has been disapproved by ' .$approverFirstname. ' '.$approverLastname;
-                    $date = now();
-                    $type = 'App\Notifications\PreviousReturnRequestNotification';
-                    $read_at = null;
-                    event(new NotificationEvent($previousApprover->id, $message, $date, $type, $read_at));
+                    event(new NotificationEvent(Auth::user()->id, $previousApprover->id));
                 }
             }
     
@@ -270,10 +254,6 @@ class ApprovalProcessController extends Controller
            ->where('id', $toID)
            ->select('id', 'firstName', 'lastName', 'position','signature', 'branch_code') // Ensure 'branch_code' is selected
            ->first();
-
-       $branchCode = $to->branch ? $to->branch->branch_code : 'No branch assigned';
-       $branchName = $to->branch ? $to->branch->branch : 'No branch assigned';
-
        // Fetch all approval statuses and comments in one query
        $approvalData = ApprovalProcess::whereIn('user_id', $allApproversIds)
            ->where('memo_id', $memo->id)
@@ -359,10 +339,10 @@ class ApprovalProcessController extends Controller
                         'firstName' =>$to->firstName,
                         'lastName' => $to->lastName, 
                         'position' =>$to->position,
-                        'branch' => $to->branch,
-                        'branch_code' => $branchName ],
+                        'branch' => $to->branch ],
                     'from' => $memo->from,
                     're' => $memo->re, 
+                    'memo_code' => $memo->memo_code,
                     'memo_body' => $memo->memo_body,// Assuming form_data is JSON
                     'status' => $approvalProcess->status, // Include the actual status of the approval process
                     'created_at' => $approvalProcess->created_at,

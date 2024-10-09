@@ -8,7 +8,9 @@ class Branch extends Model
 {
     protected $fillable = [
         'branch_code',
-       'branch'
+        'branch',
+        'acronym',
+        'branch_name'
     ];
 
     protected $guarded = [
@@ -16,6 +18,18 @@ class Branch extends Model
         'created_at',
         'updated_at',
     ];
+
+    public function user(){
+        return $this->hasMany(User::class);
+    }
+
+    public function explain(){
+        return $this->hasMany(Explain::class);
+    }
+
+    public function memo(){
+        return $this->hasMany(Memo::class);
+    }
 
     
 }
