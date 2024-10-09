@@ -21,17 +21,15 @@ class NotificationEvent implements ShouldBroadcastNow
      * Create a new event instance.
      */
 
-   
 
-    public $message, $user_id,$date,$type,$read_at;
 
-    public function __construct($user_id,$message,$date,$type,$read_at)
+    public $user_id;
+    public $next_approver_user_id;
+
+    public function __construct($user_id, $next_approver_user_id)
     {
-        $this->user_id = $user_id; 
-        $this->message = $message;  
-        $this->date = $date;  
-        $this->type = $type;
-        $this->read_at = $read_at;
+        $this->user_id = $user_id;
+        $this->next_approver_user_id = $next_approver_user_id;
     }
 
     /**
@@ -42,14 +40,10 @@ class NotificationEvent implements ShouldBroadcastNow
     public function broadcastOn(): array
     {
         return [
-            new Channel('notification'. $this->user_id),
+            new PrivateChannel('pendingCount.' . $this->user_id),
+            new PrivateChannel('pendingCount.' . $this->next_approver_user_id),
         ];
     }
 
-    public function broadcastAs()
-    {
-        return 'notification-event';
-    }
 
-   
 }
