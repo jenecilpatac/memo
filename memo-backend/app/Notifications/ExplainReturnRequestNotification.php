@@ -82,14 +82,12 @@ class ExplainReturnRequestNotification extends Notification
     }
 
 
-   /*  public function toBroadcast($notifiable)
+    public function toBroadcast($notifiable)
     {
-        //broadcast(new NotificationEvent($this->toArray($notifiable)));
+       
         return new BroadcastMessage([
-            'message' => 'Your request has been returned because it is ' . $this->status,
-            'form_type' => $this->requestForm->form_type,
-            'status' => $this->status,
-            'created_at' => now()->toDateTimeString(),
+            'message' => 'Your explanation has been ' . $this->status . ' by '. $this->approverFirstname.' '. $this->approverLastname,
+           
         ]);
-    } */
+    }
 }

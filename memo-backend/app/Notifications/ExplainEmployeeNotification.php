@@ -73,14 +73,12 @@ class ExplainEmployeeNotification extends Notification
         ];
     }
 
-  /*   public function toBroadcast($notifiable)
+    public function toBroadcast($notifiable)
     {
-        //broadcast(new NotificationEvent($this->toArray($notifiable)));
+       
         return new BroadcastMessage([
-            'message' => 'Your request has been ' . $this->status,
-            'form_type' => $this->requestForm->form_type,
-            'status' => $this->status,
-            'created_at' => now()->toDateTimeString(),
+            'message' => 'Your explanation has been ' . $this->status . ' successfully by the HR Department',
+           
         ]);
-    } */
+    }
 }

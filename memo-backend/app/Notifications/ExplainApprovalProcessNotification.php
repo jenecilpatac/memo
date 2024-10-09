@@ -6,6 +6,7 @@ use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
+use Illuminate\Notifications\Messages\BroadcastMessage;
 
 class ExplainApprovalProcessNotification extends Notification
 {
@@ -37,7 +38,7 @@ class ExplainApprovalProcessNotification extends Notification
      */
     public function via(object $notifiable): array
     {
-        return ['mail','database','broadcast'];
+        return ['database','broadcast'];
     }
 
     /**
@@ -74,5 +75,14 @@ class ExplainApprovalProcessNotification extends Notification
             //'level' => $this->approvalProcess->level,
             //'status' => $this->approvalProcess->status,
         ];
+    }
+
+    public function toBroadcast($notifiable)
+    {
+       
+        return new BroadcastMessage([
+            'message' => 'Hi '.$this->firstname .' .'.$this->userExplainFirstName.' sent you an explanation for you to check and approve',
+           
+        ]);
     }
 }

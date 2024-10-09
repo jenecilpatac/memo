@@ -45,7 +45,7 @@ class PreviousReturnRequestNotification extends Notification
      */
     public function via(object $notifiable): array
     {
-        return ['mail','database','broadcast'];
+        return ['database','broadcast'];
     }
 
     /**
@@ -95,15 +95,13 @@ class PreviousReturnRequestNotification extends Notification
         ];
     }
 
-   /*  public function toBroadcast($notifiable)
+    public function toBroadcast($notifiable)
     {
-        //broadcast(new NotificationEvent($this->toArray($notifiable)));
+       
         return new BroadcastMessage([
-            'message' => 'The request' .$this->requestForm->form_type.' is ' .$this->status. '.It has now returned to the requester.',
-            'form_type' => $this->requestForm->form_type,
-            'status' => $this->status,
-            'created_at' => now()->toDateTimeString(),
+            'message' => 'This informs you that the memo '. $this->memo->re.' has been'. $this->status. ' by ' .$this->approverFirstname. ' '.$this->approverLastname,
+           
         ]);
-    } */
+    }
 
 }

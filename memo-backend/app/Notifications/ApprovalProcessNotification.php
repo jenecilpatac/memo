@@ -41,7 +41,7 @@ class ApprovalProcessNotification extends Notification
      */
     public function via(object $notifiable): array
     {
-        return ['mail','database','broadcast'];
+        return ['database','broadcast'];
     }
 
     /**
@@ -82,5 +82,13 @@ class ApprovalProcessNotification extends Notification
         ];
     }
 
+    public function toBroadcast($notifiable)
+    {
+       
+        return new BroadcastMessage([
+            'message' => 'Your  have a new memo to approve '
+           
+        ]);
+    }
   
 }
