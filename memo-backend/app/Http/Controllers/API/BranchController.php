@@ -13,10 +13,11 @@ class BranchController extends Controller
     // CREATE BRANCH
     public function createBranch(Request $request)
     {
-       
+
             $validator = Validator::make($request->all(), [
                 'branch_code' => 'required|string|max:255|unique:branches,branch_code',
-                // Add other validation rules as needed
+                'branch_name' => ['required', 'string', 'max:150'],
+            // Add other validation rules as needed
             ]);
 
             if ($validator->fails()) {
@@ -26,10 +27,16 @@ class BranchController extends Controller
             }
 
             $branch = Branch::create([
-                'user_id' => auth()->id(),
                 'branch_code' => $request->branch_code,
+                'branch_name' => strtoupper($request->branch_code),
                 'branch' => $request->branch,
-
+                'acronym' => match ($request->branch) {
+                    "Strong Moto Centrum, Inc." => "SMCT",
+                    "Des Strong Motors, Inc." => "DSM",
+                    "Honda Des, Inc." => "HD",
+                    "Des Appliance, Inc." => "DAP",
+                    default => "HO"
+                }
             ]);
 
             return response()->json([
@@ -37,8 +44,8 @@ class BranchController extends Controller
                 'message' => 'Branch created successfully',
                 'data' => $branch,
                 
-            ]); 
-       
+            ], 201); 
+        // Return the created branch as a JSON response
     }
 
     // VIEW BRANCH
@@ -50,7 +57,7 @@ class BranchController extends Controller
             $idsArray = explode(',', $ids);
 
             // Fetch branches with specific IDs
-            $branches = Branch::whereIn('id', $idsArray)->get();
+            $branches = Branch::whereIn('id', $idsArray)->orderBy('created_at', 'desc')->get();
         } else {
             // Fetch all branches if no IDs are provided
             $branches = Branch::all();
@@ -74,15 +81,26 @@ class BranchController extends Controller
     {
         try {
 
-            $validated = $request->validate([
-                'branch_code' => 'required|string|max:255',
-                'branch' => 'required|string|max:255',
-
-            ]);
-
             $branch = Branch::findOrFail($id);
 
-            $branch->update($validated);
+            $validated = $request->validate([
+                'branch_code' => 'required|string|max:255|unique:branches,branch_code,' . $branch->id,
+                'branch' => 'required|string|max:255',
+                'branch_name' => ['required', 'string', 'max:150'],
+            ]);
+
+            $branch->update([
+                'branch_code' => $request->branch_code,
+                'branch_name' => strtoupper($request->branch_name),
+                'branch' => $request->branch,
+                'acronym' => match ($request->branch) {
+                    "Strong Moto Centrum, Inc." => "SMCT",
+                    "Des Strong Motors, Inc." => "DSM",
+                    "Honda Des, Inc." => "HD",
+                    "Des Appliance, Inc." => "DAP",
+                    default => "HO"
+                }
+            ]);
 
             return response()->json([
                 'message' => 'Branch updated successfully',

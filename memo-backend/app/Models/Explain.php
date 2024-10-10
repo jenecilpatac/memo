@@ -24,7 +24,8 @@ class Explain extends Model
     ];
 
     protected $casts = [
-        'header_name' => 'array'
+        'header_name' => 'array',
+        'created_at' => 'datetime'
     ];
 
     

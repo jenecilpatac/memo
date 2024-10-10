@@ -23,6 +23,10 @@ class Memo extends Model
         'status',
     ];
 
+    protected $casts = [
+        'created_at' => 'datetime',
+    ];
+
     
     public function user()
     {
